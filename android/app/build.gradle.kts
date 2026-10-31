@@ -28,12 +28,30 @@ android {
         versionName = flutter.versionName
     }
 
+    // Clé debug partagée, écrite par la CI depuis le secret
+    // DEBUG_KEYSTORE_BASE64 (fichier ignoré par git). On la référence
+    // explicitement : la clé debug "par défaut" dépend du HOME de la
+    // machine et n'est pas forcément la même d'un runner à l'autre.
+    val sharedKeystore = file("shared-debug.keystore")
+    signingConfigs {
+        create("shared") {
+            storeFile = sharedKeystore
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
-            // Comme pour Loady : signé avec la clé debug partagée (restaurée
-            // en CI depuis le secret DEBUG_KEYSTORE_BASE64), pour que chaque
-            // APK s'installe par-dessus le précédent sur le téléphone.
-            signingConfig = signingConfigs.getByName("debug")
+            // Comme pour Loady : signé avec la clé partagée pour que chaque
+            // APK s'installe par-dessus le précédent sur le téléphone. En
+            // local, sans le fichier, on retombe sur la clé debug de la machine.
+            signingConfig = if (sharedKeystore.exists()) {
+                signingConfigs.getByName("shared")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

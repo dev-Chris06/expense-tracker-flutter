@@ -46,17 +46,18 @@ jobs:
             echo "::error::DEBUG_KEYSTORE_BASE64 secret is missing — APK would be signed with a random cert that cannot upgrade installed versions."
             exit 1
           fi
-          rm -f "$HOME/.android/debug.keystore" 2>/dev/null || true
-          mkdir -p "$HOME/.android"
-          printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d -i > "$HOME/.android/debug.keystore"
-          SIZE=$(stat -c%s "$HOME/.android/debug.keystore")
+          # Lu par android/app/build.gradle.kts (signingConfig "shared").
+          KEYSTORE=android/app/shared-debug.keystore
+          printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d -i > "$KEYSTORE"
+          SIZE=$(stat -c%s "$KEYSTORE")
           if [ "$SIZE" -lt 1000 ]; then
             echo "::error::Decoded keystore is suspiciously small (${SIZE} bytes)."
             exit 1
           fi
-          keytool -list -keystore "$HOME/.android/debug.keystore" \
-                  -storepass android -alias androiddebugkey 2>&1 \
-            | grep -E "SHA256|SHA-256" || true
+          FINGERPRINT=$(keytool -list -keystore "$KEYSTORE" -storepass android -alias androiddebugkey \
+            | grep -E "SHA-?256" | sed 's/.*: //' | tr -d ':' | tr 'A-F' 'a-f')
+          echo "Keystore SHA-256: ${FINGERPRINT}"
+          echo "KEYSTORE_SHA256=${FINGERPRINT}" >> "$GITHUB_ENV"
 
       # Un tag doit correspondre à la version de pubspec.yaml.
       - name: Check tag matches pubspec version
@@ -97,9 +98,15 @@ jobs:
       - name: Verify APK signature matches the restored keystore
         run: |
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)
+          # Échoue si un APK n'est pas signé avec la clé partagée : il ne
+          # pourrait pas mettre à jour la version installée sur le téléphone.
           for apk in dist/*.apk; do
-            echo "$apk"
-            "$APKSIGNER" verify --print-certs "$apk" | grep -E "certificate SHA-256|certificate DN"
+            DIGEST=$("$APKSIGNER" verify --print-certs "$apk" | grep -m1 "certificate SHA-256 digest" | sed 's/.*: //')
+            echo "$apk → ${DIGEST}"
+            if [ "$DIGEST" != "$KEYSTORE_SHA256" ]; then
+              echo "::error::$apk is signed with ${DIGEST}, expected ${KEYSTORE_SHA256}."
+              exit 1
+            fi
           done
 
       - name: Upload APK artifact
