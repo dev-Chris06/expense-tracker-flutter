@@ -13,8 +13,11 @@ mêmes fonctionnalités, la même palette et les mêmes textes.
 - **Liste** : recherche sans accents ni casse sur la catégorie, la note, la
   date (ISO ou JJ/MM/AAAA) et le montant ; filtre par catégorie ; suppression
   avec confirmation.
-- **Statistiques** : répartition par catégorie d'un mois (navigation ‹ ›) et
-  historique des 12 derniers mois.
+- **Statistiques** : total d'un mois et sa répartition par catégorie
+  (navigation ‹ ›), historique des 12 derniers mois (toucher un mois affiche
+  son détail).
+- **Mises à jour** : l'accueil signale une nouvelle version publiée et permet
+  de vérifier à la demande ; l'APK s'ouvre dans le navigateur.
 - **Thème clair / sombre** qui suit le réglage du système.
 
 ## Stack
@@ -24,10 +27,11 @@ Flutter 3.47 · Dart 3.13 · sqflite · go_router · flutter_test + sqflite_comm
 ```
 lib/
   main.dart, router.dart, theme.dart
-  data/       ouverture + migrations SQLite, ExpenseRepository (ChangeNotifier)
+  data/       ouverture + migrations SQLite, ExpenseRepository (ChangeNotifier),
+              recherche de mise à jour
   models/     Expense, ExpenseInput, ExpenseCategory
   screens/    home, add, list, stats, edit
-  widgets/    ExpenseForm, AppChip
+  widgets/    ExpenseForm, AppChip, bandeau / pied de mise à jour
   utils/      validation, formatage, dates, mois, recherche
 test/         tests unitaires, base SQLite réelle en mémoire, tests de widgets
 ```
@@ -56,11 +60,19 @@ Comme pour Loady, les APK sont construits par GitHub Actions et signés avec
 la clé debug partagée (secret `DEBUG_KEYSTORE_BASE64`), ce qui permet
 d'installer chaque nouvelle version par-dessus la précédente.
 
-1. Mettre à jour `version:` dans `pubspec.yaml` (ex. `1.0.1+2` : incrémenter
-   aussi le numéro après le `+`).
-2. Commiter, puis pousser le tag : `git tag v1.0.1 && git push origin v1.0.1`.
-3. Le workflow **Build Android APK** publie `depenses-flutter-<version>-arm64.apk`
-   (téléphones récents) et `-armv7.apk` (anciens téléphones 32 bits) dans les
-   Releases du dépôt (connexion GitHub requise : dépôt privé).
+**Première installation** : ouvrir
+<https://github.com/dev-Chris06/expense-tracker-flutter/releases/latest> sur le
+téléphone et télécharger `depenses-flutter-<version>-arm64.apk` (téléphones
+récents) ou `-armv7.apk` (anciens téléphones 32 bits). Ensuite, l'app signale
+elle-même les nouvelles versions.
 
-Le workflow peut aussi être lancé à la main (onglet Actions → *Run workflow*).
+**Publier une version** :
+
+1. Mettre à jour `version:` dans `pubspec.yaml` (ex. `1.2.0+3` : incrémenter
+   aussi le numéro après le `+`).
+2. Commiter, puis pousser le tag : `git tag v1.2.0 && git push origin v1.2.0`.
+3. Le workflow **Build Android APK** publie les deux APK et un `version.json`
+   dans les Releases. C'est ce fichier que l'app lit pour détecter la mise à jour.
+
+Le workflow peut aussi être lancé à la main (onglet Actions → *Run workflow*) :
+les APK sont alors dans un artefact (zip), sans release ni mise à jour proposée.

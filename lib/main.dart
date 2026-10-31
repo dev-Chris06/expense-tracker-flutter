@@ -9,6 +9,14 @@ import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // En release, un widget en erreur s'affiche en gris sans explication :
+  // on montre plutôt le message, pour pouvoir le signaler.
+  ErrorWidget.builder = (details) => Material(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Text('Erreur inattendue :\n${details.exceptionAsString()}'),
+    ),
+  );
   final database = await openExpenseDatabase();
   runApp(ExpenseApp(repository: ExpenseRepository(database)));
 }

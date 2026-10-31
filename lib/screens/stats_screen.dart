@@ -27,6 +27,7 @@ class _StatsScreenState extends State<StatsScreen> {
   List<CategoryTotal> _categories = [];
   List<MonthTotal> _history = [];
   bool _error = false;
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -38,6 +39,7 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   void dispose() {
     widget.repository.removeListener(_load);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -72,16 +74,23 @@ class _StatsScreenState extends State<StatsScreen> {
     final isCurrentMonth = _month.compareTo(_currentMonth) >= 0;
     final sectionStyle = TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: c.text);
     final mutedStyle = TextStyle(color: c.textMuted, fontSize: 14);
+    final hintStyle = TextStyle(color: c.textMuted, fontSize: 13);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Statistiques')),
       body: ListView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(18),
         children: [
           if (_error) ...[
             Text('Impossible de charger les statistiques.', style: TextStyle(color: c.danger)),
             const SizedBox(height: 14),
           ],
+          Text(
+            'Combien tu as dépensé chaque mois, et pour quoi. Change de mois avec les flèches ‹ ›.',
+            style: mutedStyle,
+          ),
+          const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -92,8 +101,10 @@ class _StatsScreenState extends State<StatsScreen> {
               ),
               Semantics(
                 header: true,
-                child: Text(formatMonthLabel(_month),
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: c.text)),
+                child: Text(
+                  formatMonthLabel(_month),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: c.text),
+                ),
               ),
               _NavButton(
                 symbol: '›',
@@ -112,8 +123,15 @@ class _StatsScreenState extends State<StatsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(formatAmount(total),
-                    style: TextStyle(color: c.heroText, fontSize: 30, fontWeight: FontWeight.w800)),
+                Text(
+                  'Total dépensé en ${formatMonthLabel(_month)}',
+                  style: TextStyle(color: c.heroTextMuted, fontSize: 14),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  formatAmount(total),
+                  style: TextStyle(color: c.heroText, fontSize: 30, fontWeight: FontWeight.w800),
+                ),
                 const SizedBox(height: 6),
                 Text(formatCount(count), style: TextStyle(color: c.heroTextMuted, fontSize: 14)),
               ],
@@ -121,6 +139,11 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
           const SizedBox(height: 22),
           Text('Par catégorie', style: sectionStyle),
+          const SizedBox(height: 6),
+          Text(
+            'Part de chaque catégorie dans le total du mois, de la plus grosse à la plus petite.',
+            style: hintStyle,
+          ),
           const SizedBox(height: 14),
           if (_categories.isEmpty)
             Text('Aucune dépense ce mois-ci.', style: mutedStyle)
@@ -142,6 +165,12 @@ class _StatsScreenState extends State<StatsScreen> {
             ),
           const SizedBox(height: 22),
           Text('Historique mensuel', style: sectionStyle),
+          const SizedBox(height: 6),
+          Text(
+            'Total de chacun des 12 derniers mois avec des dépenses. '
+            'Touche un mois pour afficher son détail en haut.',
+            style: hintStyle,
+          ),
           const SizedBox(height: 14),
           if (_history.isEmpty)
             Text('Pas encore d’historique.', style: mutedStyle)
@@ -160,7 +189,14 @@ class _StatsScreenState extends State<StatsScreen> {
                       borderRadius: BorderRadius.circular(10),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(10),
-                        onTap: () => _selectMonth(row.month),
+                        onTap: () {
+                          _selectMonth(row.month);
+                          _scrollController.animateTo(
+                            0,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                          );
+                        },
                         child: Padding(
                           padding: const EdgeInsets.all(8),
                           child: _Bar(
@@ -207,7 +243,9 @@ class _NavButton extends StatelessWidget {
             child: SizedBox(
               width: 44,
               height: 44,
-              child: Center(child: Text(symbol, style: TextStyle(fontSize: 24, color: c.text))),
+              child: Center(
+                child: Text(symbol, style: TextStyle(fontSize: 24, color: c.text)),
+              ),
             ),
           ),
         ),
@@ -259,9 +297,14 @@ class _Bar extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: Text(label,
-                  style: TextStyle(
-                      color: labelColor ?? c.text, fontSize: 15, fontWeight: FontWeight.w600)),
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: labelColor ?? c.text,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             const SizedBox(width: 10),
             Text(value, style: TextStyle(color: c.textMuted, fontSize: 14)),
